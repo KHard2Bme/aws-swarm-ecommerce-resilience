@@ -145,5 +145,5 @@ MIT License
 
 ## 👨‍💻 Author
 
-**Your Name** – Cloud / DevOps / SRE  
-GitHub: https://github.com/<username>
+**Kevin Harding** – Cloud / DevOps / SRE  
+GitHub: [https://github.com/<username>](https://github.com/KHard2Bme)
