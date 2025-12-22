@@ -21,6 +21,7 @@ resource "aws_security_group" "swarm_sg" {
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
+    description = "Swarm Internal Communication"
     from_port   = 0
     to_port     = 65535
     protocol    = "tcp"
@@ -28,6 +29,7 @@ resource "aws_security_group" "swarm_sg" {
   }
 
   ingress {
+    description = "Allow SSH (restricted)"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
@@ -35,6 +37,7 @@ resource "aws_security_group" "swarm_sg" {
   }
 
   ingress {
+    description = "Allow HTTP from internet"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -42,6 +45,7 @@ resource "aws_security_group" "swarm_sg" {
   }
 
   ingress {
+    description = "Grafana Access"
     from_port   = 3000
     to_port     = 3000
     protocol    = "tcp"
@@ -49,6 +53,7 @@ resource "aws_security_group" "swarm_sg" {
   }
 
   ingress {
+    description = "Prometheus Access"
     from_port   = 9090
     to_port     = 9090
     protocol    = "tcp"
@@ -56,6 +61,7 @@ resource "aws_security_group" "swarm_sg" {
   }
 
   egress {
+    description = "All outbound"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"

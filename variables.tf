@@ -5,7 +5,7 @@ variable "aws_region" {
 
 variable "key_name" {
   description = "EC2 key pair name"
-  type        = string
+  type        = "LUIT_Linux1_Keys"
 }
 
 variable "instance_type" {
