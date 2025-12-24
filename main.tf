@@ -5,12 +5,15 @@ data "aws_vpc" "default" {
   default = true
 }
 
-data "aws_subnets" "default" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
-  }
+data "aws_availability_zones" "available" {
+  state = "available"
 }
+
+data "aws_subnet" "default" {
+  vpc_id            = data.aws_vpc.default.id
+  availability_zone = data.aws_availability_zones.available.names[0]
+}
+
 
 #############################
 # Security Group
@@ -90,7 +93,7 @@ resource "aws_instance" "manager" {
   count         = var.manager_count
   ami           = data.aws_ami.amazon_linux.id
   instance_type = var.instance_type
-  subnet_id     = data.aws_subnets.default.ids[0]
+  subnet_id     = data.aws_subnet.default.id
   key_name      = var.key_name
 
   vpc_security_group_ids = [aws_security_group.swarm_sg.id]
@@ -109,7 +112,7 @@ resource "aws_instance" "worker" {
   count         = var.worker_count
   ami           = data.aws_ami.amazon_linux.id
   instance_type = var.instance_type
-  subnet_id     = data.aws_subnets.default.ids[1]
+  subnet_id     = data.aws_subnet.default.id
   key_name      = var.key_name
 
   vpc_security_group_ids = [aws_security_group.swarm_sg.id]
