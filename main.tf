@@ -9,10 +9,13 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
-data "aws_subnet" "default" {
-  vpc_id            = data.aws_vpc.default.id
-  availability_zone = data.aws_availability_zones.available.names[0]
+data "aws_subnets" "default" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
 }
+
 
 
 #############################
@@ -93,7 +96,7 @@ resource "aws_instance" "manager" {
   count         = var.manager_count
   ami           = data.aws_ami.amazon_linux.id
   instance_type = var.instance_type
-  subnet_id     = data.aws_subnet.default.id
+  subnet_id     = data.aws_subnets.default.ids[count.index]
   key_name      = var.key_name
 
   vpc_security_group_ids = [aws_security_group.swarm_sg.id]
@@ -112,7 +115,7 @@ resource "aws_instance" "worker" {
   count         = var.worker_count
   ami           = data.aws_ami.amazon_linux.id
   instance_type = var.instance_type
-  subnet_id     = data.aws_subnet.default.id
+  subnet_id = data.aws_subnets.default.ids[count.index % length(data.aws_subnets.default.ids)]
   key_name      = var.key_name
 
   vpc_security_group_ids = [aws_security_group.swarm_sg.id]
@@ -157,7 +160,7 @@ resource "aws_lb_target_group" "swarm_tg" {
 ##########################################
 resource "aws_lb_target_group_attachment" "manager" {
   target_group_arn = aws_lb_target_group.swarm_tg.arn
-  target_id        = aws_instance.manager.id
+  target_id        = aws_instance.manager[0].id
   port             = 80
 }
 

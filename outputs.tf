@@ -7,9 +7,9 @@ output "frontend_url" {
 }
 
 output "grafana_url" {
-  value = "http://${aws_instance.manager.public_ip}:3000"
+  value = "http://${aws_instance.manager[0].public_ip}:3000"
 }
 
 output "prometheus_url" {
-  value = "http://${aws_instance.manager.public_ip}:9090"
+  value = "http://${aws_instance.manager[0].public_ip}:9090"
 }
