@@ -5,8 +5,13 @@ data "aws_vpc" "default" {
   default = true
 }
 
-data "aws_availability_zones" "available" {
+data "aws_availability_zones" "supported" {
   state = "available"
+
+  filter {
+    name   = "zone-name"
+    values = ["us-east-1a", "us-east-1b", "us-east-1c", "us-east-1d", "us-east-1f"]
+  }
 }
 
 data "aws_subnets" "default" {
@@ -14,8 +19,12 @@ data "aws_subnets" "default" {
     name   = "vpc-id"
     values = [data.aws_vpc.default.id]
   }
-}
 
+  filter {
+    name   = "availability-zone"
+    values = data.aws_availability_zones.supported.names
+  }
+}
 
 
 #############################
