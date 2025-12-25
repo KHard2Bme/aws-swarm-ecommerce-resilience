@@ -29,3 +29,8 @@ variable "project_name" {
   type    = string
   default = "swarm-ecommerce"
 }
+
+variable "alb_name" {
+  type    = string
+  default = "swarm-ecommerce-alb"
+}

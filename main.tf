@@ -123,3 +123,61 @@ resource "aws_instance" "worker" {
     Name = "${var.project_name}-worker-${count.index}"
   }
 }
+
+#######
+# ALB
+#######
+resource "aws_lb" "alb" {
+  name               = var.alb_name
+  load_balancer_type = "application"
+  subnets            = data.aws_subnets.default.ids
+  security_groups    = [aws_security_group.swarm_sg.id]
+}
+
+###############
+# Target Group
+###############
+resource "aws_lb_target_group" "swarm_tg" {
+  name     = "${var.project_name}-tg"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = data.aws_vpc.default.id
+
+  health_check {
+    path                = "/"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+  }
+}
+
+##########################################
+# Target Group Attachments (All EC2 Nodes)
+##########################################
+resource "aws_lb_target_group_attachment" "manager" {
+  target_group_arn = aws_lb_target_group.swarm_tg.arn
+  target_id        = aws_instance.manager.id
+  port             = 80
+}
+
+resource "aws_lb_target_group_attachment" "workers" {
+  count            = var.worker_count
+  target_group_arn = aws_lb_target_group.swarm_tg.arn
+  target_id        = aws_instance.worker[count.index].id
+  port             = 80
+}
+
+###########
+# Listener
+###########
+resource "aws_lb_listener" "http" {
+  load_balancer_arn = aws_lb.alb.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.swarm_tg.arn
+  }
+}
