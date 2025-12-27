@@ -167,12 +167,6 @@ resource "aws_lb_target_group" "swarm_tg" {
 ##########################################
 # Target Group Attachments (All EC2 Nodes)
 ##########################################
-resource "aws_lb_target_group_attachment" "manager" {
-  target_group_arn = aws_lb_target_group.swarm_tg.arn
-  target_id        = aws_instance.manager[0].id
-  port             = 80
-}
-
 resource "aws_lb_target_group_attachment" "workers" {
   count            = var.worker_count
   target_group_arn = aws_lb_target_group.swarm_tg.arn
