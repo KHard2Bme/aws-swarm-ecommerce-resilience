@@ -1,3 +1,16 @@
+###############################################
+# Waits for Swarm init and retrieves the token
+###############################################
+data "external" "worker_token" {
+  program = ["bash", "-c", <<EOF
+sleep 60
+TOKEN=$(ssh -o StrictHostKeyChecking=no ec2-user@${aws_instance.manager[0].public_ip} docker swarm join-token -q worker)
+echo "{\"token\": \"$TOKEN\"}"
+EOF
+]
+}
+
+
 ###########################
 # Default VPC & aws_subnets
 ###########################
@@ -124,17 +137,29 @@ resource "aws_instance" "worker" {
   count         = var.worker_count
   ami           = data.aws_ami.amazon_linux.id
   instance_type = var.instance_type
-  subnet_id = data.aws_subnets.default.ids[count.index % length(data.aws_subnets.default.ids)]
-  key_name      = var.key_name
 
+  subnet_id = data.aws_subnets.default.ids[
+    count.index % length(data.aws_subnets.default.ids)
+  ]
+
+  key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.swarm_sg.id]
 
-  user_data = file("user_data/worker.sh")
+  user_data = templatefile(
+    "${path.module}/user_data/worker.sh",
+    {
+      manager_private_ip = aws_instance.manager[0].private_ip
+      worker_join_token  = data.external.worker_token.result.token
+    }
+  )
+
+  depends_on = [aws_instance.manager]
 
   tags = {
     Name = "${var.project_name}-worker-${count.index}"
   }
 }
+
 
 #######
 # ALB

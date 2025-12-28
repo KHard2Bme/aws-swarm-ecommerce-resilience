@@ -6,12 +6,12 @@ set -e
 ########################################
 yum update -y
 amazon-linux-extras install docker -y
-systemctl start docker
 systemctl enable docker
+systemctl start docker
 usermod -aG docker ec2-user
 
 ########################################
-# Initialize Docker Swarm
+# Initialize Docker Swarm (Idempotent)
 ########################################
 PRIVATE_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
 
@@ -23,29 +23,34 @@ fi
 # Label Manager Node
 ########################################
 NODE_ID=$(docker info -f '{{.Swarm.NodeID}}')
-docker node update --label-add role=manager $NODE_ID
+docker node update --label-add role=manager $NODE_ID || true
 
 ########################################
 # Wait for Workers to Join
 ########################################
-echo "Waiting for worker nodes to join Swarm..."
-for i in {1..12}; do
-  WORKER_COUNT=$(docker node ls --format '{{.Hostname}} {{.ManagerStatus}}' | grep -v Leader | wc -l)
-  if [ "$WORKER_COUNT" -ge 1 ]; then
-    echo "Workers detected: $WORKER_COUNT"
+echo "Waiting for workers to join..."
+for i in {1..18}; do
+  WORKERS=$(docker node ls --format '{{.Hostname}} {{.ManagerStatus}}' | grep -v Leader | wc -l)
+  if [ "$WORKERS" -ge 1 ]; then
+    echo "Workers joined: $WORKERS"
     break
   fi
   sleep 10
 done
 
 ########################################
+# Label Worker Nodes (Manager-only)
+########################################
+docker node ls --format '{{.ID}} {{.ManagerStatus}}' \
+  | grep -v Leader \
+  | awk '{print $1}' \
+  | xargs -r docker node update --label-add role=worker
+
+########################################
 # Create Overlay Network
 ########################################
 docker network inspect swarm-net >/dev/null 2>&1 || \
-docker network create \
-  --driver overlay \
-  --attachable \
-  swarm-net
+docker network create --driver overlay --attachable swarm-net
 
 ########################################
 # Deploy FRONTEND (Workers Only)
@@ -53,7 +58,7 @@ docker network create \
 docker service inspect frontend >/dev/null 2>&1 || \
 docker service create \
   --name frontend \
-  --constraint 'node.role==worker' \
+  --constraint 'node.labels.role==worker' \
   --replicas 2 \
   --publish published=80,target=80 \
   --network swarm-net \
@@ -65,7 +70,7 @@ docker service create \
 docker service inspect checkout >/dev/null 2>&1 || \
 docker service create \
   --name checkout \
-  --constraint 'node.role==worker' \
+  --constraint 'node.labels.role==worker' \
   --replicas 2 \
   --network swarm-net \
   nginx
