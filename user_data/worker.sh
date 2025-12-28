@@ -22,3 +22,4 @@ for i in {1..15}; do
     ${MANAGER_PRIVATE_IP}:2377 && break
   sleep 15
 done
+
