@@ -7,7 +7,7 @@ sleep 60
 TOKEN=$(ssh -o StrictHostKeyChecking=no ec2-user@${aws_instance.manager[0].public_ip} docker swarm join-token -q worker)
 echo "{\"token\": \"$TOKEN\"}"
 EOF
-]
+  ]
 }
 
 
@@ -145,15 +145,7 @@ resource "aws_instance" "worker" {
   key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.swarm_sg.id]
 
-  user_data = templatefile(
-    "${path.module}/user_data/worker.sh",
-    {
-      manager_private_ip = aws_instance.manager[0].private_ip
-      worker_join_token  = data.external.worker_token.result.token
-    }
-  )
-
-  depends_on = [aws_instance.manager]
+  user_data = file("user_data/worker.sh")
 
   tags = {
     Name = "${var.project_name}-worker-${count.index}"

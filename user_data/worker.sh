@@ -13,13 +13,13 @@ usermod -aG docker ec2-user
 #################################
 # Join Docker Swarm
 #################################
-MANAGER_PRIVATE_IP="${manager_private_ip}"
-WORKER_TOKEN="${worker_join_token}"
+MANAGER_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4 | sed 's/\.[0-9]*$/.1/')
 
 for i in {1..15}; do
-  docker swarm join \
-    --token "${WORKER_TOKEN}" \
-    ${MANAGER_PRIVATE_IP}:2377 && break
+  TOKEN=$(ssh -o StrictHostKeyChecking=no ec2-user@${MANAGER_IP} "cat /tmp/worker_join_token" 2>/dev/null)
+  if [ -n "$TOKEN" ]; then
+    docker swarm join --token "$TOKEN" ${MANAGER_IP}:2377 && break
+  fi
   sleep 15
 done
 
