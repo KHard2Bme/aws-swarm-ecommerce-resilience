@@ -77,6 +77,14 @@ ingress {
   }
 
   ingress {
+  description = "Internal SSH for Swarm bootstrap"
+  from_port   = 22
+  to_port     = 22
+  protocol    = "tcp"
+  self        = true
+}
+
+  ingress {
     description = "Allow HTTP from internet"
     from_port   = 80
     to_port     = 80
@@ -157,7 +165,12 @@ resource "aws_instance" "worker" {
   key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.swarm_sg.id]
 
-  user_data = file("user_data/worker.sh")
+  user_data = templatefile(
+  "${path.module}/user_data/worker.sh",
+  {
+    manager_private_ip = aws_instance.manager[0].private_ip
+  }
+)
 
   tags = {
     Name = "${var.project_name}-worker-${count.index}"
