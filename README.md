@@ -135,7 +135,7 @@ docker service scale traffic-generator=1
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `aws_region` | AWS region | `us-east-1` |
-| `key_name` | EC2 key pair | `LUIT_Linux1_Keys` |
+| `key_name` | EC2 key pair | `LUIT_XXXXXX_XXXs` |
 | `instance_type` | EC2 type | `t3.micro` |
 | `manager_count` | Number of manager nodes | 1 |
 | `worker_count` | Number of worker nodes | 2 |
