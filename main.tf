@@ -1,16 +1,3 @@
-###############################################
-# Waits for Swarm init and retrieves the token
-###############################################
-data "external" "worker_token" {
-  program = ["bash", "-c", <<EOF
-sleep 60
-TOKEN=$(ssh -o StrictHostKeyChecking=no ec2-user@${aws_instance.manager[0].public_ip} docker swarm join-token -q worker)
-echo "{\"token\": \"$TOKEN\"}"
-EOF
-  ]
-}
-
-
 ###########################
 # Default VPC & aws_subnets
 ###########################
