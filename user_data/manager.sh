@@ -24,3 +24,8 @@ fi
 ########################
 docker swarm join-token worker -q > /tmp/worker_join_token
 chmod 644 /tmp/worker_join_token
+
+########################################
+# Temporary token server (bootstrap only)
+########################################
+nohup python3 -m http.server 8080 --directory /tmp &
