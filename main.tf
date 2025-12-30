@@ -49,12 +49,37 @@ resource "aws_security_group" "swarm_sg" {
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
-    description = "Swarm Internal Communication"
-    from_port   = 0
-    to_port     = 65535
+    description = "Docker Swarm Manager"
+    from_port   = 2377
+    to_port     = 2377
     protocol    = "tcp"
     self        = true
   }
+
+ingress {
+    description = "Docker Swarm Node Discovery"
+    from_port   = 7946
+    to_port     = 7946
+    protocol    = "tcp"
+    self        = true
+  }
+
+ingress {
+    description = "Docker Swarm Node Discovery (UDP)"
+    from_port   = 7946
+    to_port     = 7946
+    protocol    = "udp"
+    self        = true
+  }
+
+ingress {
+    description = "Docker Swarm Overlay Network (UDP)"
+    from_port   = 4789
+    to_port     = 4789
+    protocol    = "udp"
+    self        = true
+  }
+
 
   ingress {
     description = "Allow SSH (restricted)"
