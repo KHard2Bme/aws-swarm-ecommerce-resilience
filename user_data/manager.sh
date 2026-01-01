@@ -19,13 +19,17 @@ if ! docker info | grep -q "Swarm: active"; then
   docker swarm init --advertise-addr $PRIVATE_IP
 fi
 
-########################
-# Save worker join token
-########################
-docker swarm join-token worker -q > /tmp/worker_join_token
-chmod 644 /tmp/worker_join_token
+########################################
+# Expose Worker Join Token (HTTP)
+########################################
+docker swarm join-token -q worker > /tmp/worker_join_token
 
-########################################
-# Temporary token server (bootstrap only)
-########################################
-nohup python3 -m http.server 8080 --directory /tmp &
+cd /tmp
+nohup python3 -m http.server 8080 >/var/log/token-server.log 2>&1 &
+
+##############################
+# Add node labeling to manager
+##############################
+NODE_ID=$(docker info -f '{{.Swarm.NodeID}}')
+docker node update --label-add role=manager $NODE_ID
+

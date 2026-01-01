@@ -32,3 +32,8 @@ for i in {1..20}; do
 
   sleep 15
 done
+
+##############################
+# Add node labeling to workers
+##############################
+docker node update --label-add role=worker $(hostname)

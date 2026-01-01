@@ -38,6 +38,7 @@ docker service create \
   --name checkout \
   --constraint 'node.role==worker' \
   --replicas 2 \
+  --publish published=80,target=80 \
   --network swarm-net \
   nginx
 

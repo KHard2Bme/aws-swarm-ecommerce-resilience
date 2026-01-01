@@ -28,12 +28,89 @@ data "aws_subnets" "default" {
 
 
 #############################
-# Security Group
+# Security Groups
 #############################
-resource "aws_security_group" "swarm_sg" {
-  name        = "${var.project_name}-sg"
-  description = "Docker Swarm + Monitoring"
-  vpc_id      = data.aws_vpc.default.id
+resource "aws_security_group" "manager_sg" {
+  name   = "${var.project_name}-manager-sg"
+  vpc_id = data.aws_vpc.default.id
+
+ ingress {
+    description = "Allow SSH (restricted)"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+ingress {
+  description = "Workers join token HTTP access"
+  from_port   = 8080
+  to_port     = 8080
+  protocol    = "tcp"
+  security_groups = [aws_security_group.worker_sg.id]
+}
+
+ingress {
+    description = "Docker Swarm join from Workers"
+    from_port   = 2377
+    to_port     = 2377
+    protocol    = "tcp"
+    security_groups = [aws_security_group.worker_sg.id]
+  }
+
+ ingress {
+    description = "Grafana Access"
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+ ingress {
+    description = "Prometheus Access"
+    from_port   = 9090
+    to_port     = 9090
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "All outbound"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+
+resource "aws_security_group" "worker_sg" {
+  name   = "${var.project_name}-worker-sg"
+  vpc_id = data.aws_vpc.default.id
+
+    ingress {
+    description = "Allow SSH (restricted)"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+  description = "Internal SSH for Swarm bootstrap"
+  from_port   = 22
+  to_port     = 22
+  protocol    = "tcp"
+  self        = true
+}
+
+  ingress {
+    description = "Allow HTTP from internet"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
   ingress {
     description = "Docker Swarm Manager"
@@ -67,48 +144,7 @@ ingress {
     self        = true
   }
 
-
-  ingress {
-    description = "Allow SSH (restricted)"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-  description = "Internal SSH for Swarm bootstrap"
-  from_port   = 22
-  to_port     = 22
-  protocol    = "tcp"
-  self        = true
-}
-
-  ingress {
-    description = "Allow HTTP from internet"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "Grafana Access"
-    from_port   = 3000
-    to_port     = 3000
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "Prometheus Access"
-    from_port   = 9090
-    to_port     = 9090
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
+   egress {
     description = "All outbound"
     from_port   = 0
     to_port     = 0
@@ -141,7 +177,7 @@ resource "aws_instance" "manager" {
   subnet_id     = data.aws_subnets.default.ids[count.index]
   key_name      = var.key_name
 
-  vpc_security_group_ids = [aws_security_group.swarm_sg.id]
+  vpc_security_group_ids = [aws_security_group.manager_sg.id]
 
   user_data = file("user_data/manager.sh")
 
@@ -163,7 +199,7 @@ resource "aws_instance" "worker" {
   ]
 
   key_name               = var.key_name
-  vpc_security_group_ids = [aws_security_group.swarm_sg.id]
+  vpc_security_group_ids = [aws_security_group.worker_sg.id]
 
   user_data = templatefile(
   "${path.module}/user_data/worker.sh",
@@ -185,7 +221,7 @@ resource "aws_lb" "alb" {
   name               = var.alb_name
   load_balancer_type = "application"
   subnets            = data.aws_subnets.default.ids
-  security_groups    = [aws_security_group.swarm_sg.id]
+  security_groups    = [aws_security_group.worker_sg.id]
 }
 
 ###############
