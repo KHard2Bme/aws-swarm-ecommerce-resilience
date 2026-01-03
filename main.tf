@@ -1,17 +1,8 @@
 ###########################
-# Default VPC & aws_subnets
+# VPC & Subnets
 ###########################
 data "aws_vpc" "default" {
   default = true
-}
-
-data "aws_availability_zones" "supported" {
-  state = "available"
-
-  filter {
-    name   = "zone-name"
-    values = ["us-east-1a", "us-east-1b", "us-east-1c", "us-east-1d", "us-east-1f"]
-  }
 }
 
 data "aws_subnets" "default" {
@@ -19,55 +10,73 @@ data "aws_subnets" "default" {
     name   = "vpc-id"
     values = [data.aws_vpc.default.id]
   }
+}
 
-  filter {
-    name   = "availability-zone"
-    values = data.aws_availability_zones.supported.names
+#############################
+# ALB Security Group (PUBLIC)
+#############################
+resource "aws_security_group" "alb_sg" {
+  name   = "${var.project_name}-alb-sg"
+  vpc_id = data.aws_vpc.default.id
+
+  ingress {
+    description = "Public HTTP"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Outbound"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 }
 
-
 #############################
-# Security Groups
+# Manager Security Group
 #############################
 resource "aws_security_group" "manager_sg" {
   name   = "${var.project_name}-manager-sg"
   vpc_id = data.aws_vpc.default.id
 
- ingress {
-    description = "Allow SSH (restricted)"
+  ingress {
+    description = "SSH"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-ingress {
-  description = "Workers join token HTTP access"
-  from_port   = 8080
-  to_port     = 8080
-  protocol    = "tcp"
-  security_groups = [aws_security_group.worker_sg.id]
-}
-
-ingress {
-    description = "Docker Swarm join from Workers"
-    from_port   = 2377
-    to_port     = 2377
-    protocol    = "tcp"
+  ingress {
+    description     = "Worker Join Token"
+    from_port       = 8080
+    to_port         = 8080
+    protocol        = "tcp"
     security_groups = [aws_security_group.worker_sg.id]
   }
 
- ingress {
-    description = "Grafana Access"
+  ingress {
+    description     = "Swarm Manager"
+    from_port       = 2377
+    to_port         = 2377
+    protocol        = "tcp"
+    security_groups = [aws_security_group.worker_sg.id]
+  }
+
+  ingress {
+    description = "Grafana"
     from_port   = 3000
     to_port     = 3000
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
- ingress {
-    description = "Prometheus Access"
+  ingress {
+    description = "Prometheus"
     from_port   = 9090
     to_port     = 9090
     protocol    = "tcp"
@@ -75,7 +84,6 @@ ingress {
   }
 
   egress {
-    description = "All outbound"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -83,69 +91,76 @@ ingress {
   }
 }
 
-
+#############################
+# Worker Security Group (PRIVATE)
+#############################
 resource "aws_security_group" "worker_sg" {
   name   = "${var.project_name}-worker-sg"
   vpc_id = data.aws_vpc.default.id
 
-    ingress {
-    description = "Allow SSH (restricted)"
+  ingress {
+    description = "SSH (admin)"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  #################################
+  # ALB → Services (ONLY)
+  #################################
   ingress {
-  description = "Internal SSH for Swarm bootstrap"
-  from_port   = 22
-  to_port     = 22
-  protocol    = "tcp"
-  self        = true
-}
-
-  ingress {
-    description = "Allow HTTP from internet"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    description     = "Frontend from ALB"
+    from_port       = 8081
+    to_port         = 8081
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb_sg.id]
   }
 
   ingress {
-    description = "Docker Swarm Manager"
-    from_port   = 2377
-    to_port     = 2377
-    protocol    = "tcp"
-    self        = true
+    description     = "Checkout from ALB"
+    from_port       = 8082
+    to_port         = 8082
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb_sg.id]
   }
 
-ingress {
+  #################################
+  # Docker Swarm Internal
+  #################################
+  ingress {
+    description     = "Docker Swarm Manager"
+    from_port       = 2377
+    to_port         = 2377
+    protocol        = "tcp"
+    self            = true
+  }
+
+  ingress {
+    description     = "Docker Swarm Node Discovery"
+    from_port       = 7946
+    to_port         = 7946
+    protocol        = "tcp"
+    self            = true
+  }
+
+  ingress {
     description = "Docker Swarm Node Discovery"
-    from_port   = 7946
-    to_port     = 7946
-    protocol    = "tcp"
-    self        = true
-  }
-
-ingress {
-    description = "Docker Swarm Node Discovery (UDP)"
     from_port   = 7946
     to_port     = 7946
     protocol    = "udp"
     self        = true
   }
 
-ingress {
-    description = "Docker Swarm Overlay Network (UDP)"
+  ingress {
+    description = "Docker Swarm Overlay Network"
     from_port   = 4789
     to_port     = 4789
     protocol    = "udp"
     self        = true
   }
 
-   egress {
-    description = "All outbound"
+  egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -153,108 +168,86 @@ ingress {
   }
 }
 
-###############
-# AMI
-###############
-data "aws_ami" "amazon_linux" {
-  most_recent = true
-
-  filter {
-    name   = "name"
-    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
-  }
-
-  owners = ["amazon"]
-}
-
-#################
-# Swarm Manager
-#################
+#############################
+# EC2 Instances
+#############################
 resource "aws_instance" "manager" {
-  count         = var.manager_count
-  ami           = data.aws_ami.amazon_linux.id
-  instance_type = var.instance_type
-  subnet_id     = data.aws_subnets.default.ids[count.index]
-  key_name      = var.key_name
-
+  ami                    = data.aws_ami.amazon_linux.id
+  instance_type          = var.instance_type
+  subnet_id              = data.aws_subnets.default.ids[0]
+  key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.manager_sg.id]
-
-  user_data = file("user_data/manager.sh")
+  user_data              = file("user_data/manager.sh")
 
   tags = {
     Name = "${var.project_name}-manager"
   }
 }
 
-##################
-# Swarm Workers
-##################
 resource "aws_instance" "worker" {
-  count         = var.worker_count
-  ami           = data.aws_ami.amazon_linux.id
-  instance_type = var.instance_type
-
-  subnet_id = data.aws_subnets.default.ids[
-    count.index % length(data.aws_subnets.default.ids)
-  ]
-
+  count                  = var.worker_count
+  ami                    = data.aws_ami.amazon_linux.id
+  instance_type          = var.instance_type
+  subnet_id              = data.aws_subnets.default.ids[count.index]
   key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.worker_sg.id]
 
-  user_data = templatefile(
-  "${path.module}/user_data/worker.sh",
-  {
-    manager_private_ip = aws_instance.manager[0].private_ip
-  }
-)
+  user_data = templatefile("${path.module}/user_data/worker.sh", {
+    manager_private_ip = aws_instance.manager.private_ip
+  })
 
   tags = {
     Name = "${var.project_name}-worker-${count.index}"
   }
 }
 
-
-#######
-# ALB
-#######
+#############################
+# Application Load Balancer
+#############################
 resource "aws_lb" "alb" {
   name               = var.alb_name
   load_balancer_type = "application"
   subnets            = data.aws_subnets.default.ids
-  security_groups    = [aws_security_group.worker_sg.id]
+  security_groups    = [aws_security_group.alb_sg.id]
 }
 
-###############
-# Target Group
-###############
-resource "aws_lb_target_group" "swarm_tg" {
-  name     = "${var.project_name}-tg"
-  port     = 80
+#############################
+# Target Groups
+#############################
+resource "aws_lb_target_group" "frontend_tg" {
+  name     = "${var.project_name}-frontend-tg"
+  port     = 8081
   protocol = "HTTP"
   vpc_id   = data.aws_vpc.default.id
-
-  health_check {
-    path                = "/"
-    interval            = 30
-    timeout             = 5
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
-  }
 }
 
-##########################################
-# Target Group Attachments (All EC2 Nodes)
-##########################################
-resource "aws_lb_target_group_attachment" "workers" {
+resource "aws_lb_target_group" "checkout_tg" {
+  name     = "${var.project_name}-checkout-tg"
+  port     = 8082
+  protocol = "HTTP"
+  vpc_id   = data.aws_vpc.default.id
+}
+
+#############################
+# Attach Workers
+#############################
+resource "aws_lb_target_group_attachment" "frontend" {
   count            = var.worker_count
-  target_group_arn = aws_lb_target_group.swarm_tg.arn
+  target_group_arn = aws_lb_target_group.frontend_tg.arn
   target_id        = aws_instance.worker[count.index].id
-  port             = 80
+  port             = 8081
 }
 
-###########
-# Listener
-###########
+resource "aws_lb_target_group_attachment" "checkout" {
+  count            = var.worker_count
+  target_group_arn = aws_lb_target_group.checkout_tg.arn
+  target_id        = aws_instance.worker[count.index].id
+  port             = 8082
+}
+
+#############################
+# ALB Listener & Routing
+#############################
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.alb.arn
   port              = 80
@@ -262,6 +255,22 @@ resource "aws_lb_listener" "http" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.swarm_tg.arn
+    target_group_arn = aws_lb_target_group.frontend_tg.arn
+  }
+}
+
+resource "aws_lb_listener_rule" "checkout" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 10
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.checkout_tg.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/checkout*"]
+    }
   }
 }

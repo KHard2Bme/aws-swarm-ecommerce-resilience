@@ -15,25 +15,13 @@ usermod -aG docker ec2-user
 #################################
 MANAGER_IP="${manager_private_ip}"
 
-##################
-# Wait for Docker
-##################
 sleep 60
 
-#############################
-# Retry join until successful
-#############################
 for i in {1..20}; do
   TOKEN=$(curl -s http://$MANAGER_IP:8080/worker_join_token || true)
-
   if [ -n "$TOKEN" ]; then
-    docker swarm join --token "$TOKEN" $MANAGER_IP:2377 && break
+    docker swarm join --token "$TOKEN" "$MANAGER_IP:2377" && break
   fi
-
   sleep 15
 done
 
-##############################
-# Add node labeling to workers
-##############################
-docker node update --label-add role=worker $(hostname)
