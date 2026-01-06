@@ -26,32 +26,27 @@ echo "Overlay network ready"
 # FRONTEND Service (Workers Only)
 # Published ONLY for ALB access
 ########################################
-if ! docker service inspect frontend >/dev/null 2>&1; then
-  docker service create \
-    --name frontend \
-    --constraint 'node.labels.role==worker' \
-    --replicas 2 \
-    --publish published=8081,target=80 \
-    --network swarm-net \
-    nginx
-else
-  echo "Frontend service already exists"
-fi
+docker service create \
+  --name frontend \
+  --constraint 'node.role==worker' \
+  --replicas 2 \
+  --publish published=8081,target=80 \
+  --network swarm-net \
+  194722415553.dkr.ecr.us-east-1.amazonaws.com/swarm-frontend1:1.0
 
 ########################################
 # CHECKOUT Service (Workers Only)
 ########################################
-if ! docker service inspect checkout >/dev/null 2>&1; then
-  docker service create \
-    --name checkout \
-    --constraint 'node.labels.role==worker' \
-    --replicas 2 \
-    --publish published=8082,target=80 \
-    --network swarm-net \
-    nginx
-else
-  echo "Checkout service already exists"
-fi
+docker service create \
+  --name checkout \
+  --constraint 'node.role==worker' \
+  --replicas 2 \
+  --publish published=8082,target=80 \
+  --network swarm-net \
+  194722415553.dkr.ecr.us-east-1.amazonaws.com/swarm-checkout1:1.0
+
+echo "Frontend available on /"
+echo "Checkout available on /checkout"
 
 ########################################
 # PROMETHEUS (Manager Only)
