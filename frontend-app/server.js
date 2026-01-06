@@ -1,11 +1,23 @@
 const express = require("express");
 const app = express();
-const PORT = 80;
 
 app.get("/", (req, res) => {
-  res.send("<h1>Welcome to the Frontend Store</h1><p>Products go here!</p>");
+  res.send(`
+    <h1>🛒 Demo E-Commerce Store</h1>
+    <ul>
+      <li>Laptop – $999</li>
+      <li>Phone – $599</li>
+      <li>Headphones – $199</li>
+    </ul>
+    <a href="/checkout">Go to Checkout</a>
+  `);
 });
 
-app.listen(PORT, () => {
-  console.log(`Frontend running on port ${PORT}`);
+app.get("/checkout", (req, res) => {
+  res.redirect("http://checkout:3000/");
 });
+
+app.listen(3000, () => {
+  console.log("Frontend running on port 3000");
+});
+
