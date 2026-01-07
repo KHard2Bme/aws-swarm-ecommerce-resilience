@@ -116,21 +116,13 @@ resource "aws_security_group" "worker_sg" {
   #################################
   ingress {
     description     = "Frontend from ALB"
-    from_port       = 8081
-    to_port         = 8081
+    from_port       = 3000
+    to_port         = 3000
     protocol        = "tcp"
     security_groups = [aws_security_group.alb_sg.id]
   }
 
-  ingress {
-    description     = "Checkout from ALB"
-    from_port       = 8082
-    to_port         = 8082
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb_sg.id]
-  }
-
-  #################################
+   #################################
   # Docker Swarm Internal
   #################################
   ingress {
@@ -242,16 +234,28 @@ resource "aws_lb" "alb" {
 #############################
 resource "aws_lb_target_group" "frontend_tg" {
   name     = "${var.project_name}-frontend-tg"
-  port     = 8081
+  port     = 3000
   protocol = "HTTP"
   vpc_id   = data.aws_vpc.default.id
+
+  health_check {
+    path = "/"
+  }
 }
 
 resource "aws_lb_target_group" "checkout_tg" {
   name     = "${var.project_name}-checkout-tg"
-  port     = 8082
+  port     = 3001
   protocol = "HTTP"
   vpc_id   = data.aws_vpc.default.id
+
+  health_check {
+    path                = "/checkout"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+  }
 }
 
 #############################
@@ -261,14 +265,14 @@ resource "aws_lb_target_group_attachment" "frontend" {
   count            = var.worker_count
   target_group_arn = aws_lb_target_group.frontend_tg.arn
   target_id        = aws_instance.worker[count.index].id
-  port             = 8081
+  port             = 3000
 }
 
 resource "aws_lb_target_group_attachment" "checkout" {
   count            = var.worker_count
   target_group_arn = aws_lb_target_group.checkout_tg.arn
   target_id        = aws_instance.worker[count.index].id
-  port             = 8082
+  port             = 3001
 }
 
 #############################
@@ -289,14 +293,15 @@ resource "aws_lb_listener_rule" "checkout" {
   listener_arn = aws_lb_listener.http.arn
   priority     = 10
 
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.checkout_tg.arn
-  }
-
   condition {
     path_pattern {
       values = ["/checkout*"]
     }
   }
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.checkout_tg.arn
+  }
 }
+
