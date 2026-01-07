@@ -30,9 +30,9 @@ docker service create \
   --name frontend \
   --constraint 'node.role==worker' \
   --replicas 2 \
-  --publish published=8081,target=80 \
+  --publish mode=host,published=3000,target=80 \
   --network swarm-net \
-  194722415553.dkr.ecr.us-east-1.amazonaws.com/swarm-frontend1:1.0
+  194722415553.dkr.ecr.us-east-1.amazonaws.com/swarm-frontend2:1.0
 
 ########################################
 # CHECKOUT Service (Workers Only)
@@ -41,40 +41,13 @@ docker service create \
   --name checkout \
   --constraint 'node.role==worker' \
   --replicas 2 \
-  --publish published=8082,target=80 \
+  --publish mode=host,published=3001,target=80 \
   --network swarm-net \
-  194722415553.dkr.ecr.us-east-1.amazonaws.com/swarm-checkout1:1.0
+  194722415553.dkr.ecr.us-east-1.amazonaws.com/swarm-checkout2:1.0
+
 
 echo "Frontend available on /"
 echo "Checkout available on /checkout"
-
-########################################
-# PROMETHEUS (Manager Only)
-########################################
-if ! docker service inspect prometheus >/dev/null 2>&1; then
-  docker service create \
-    --name prometheus \
-    --constraint 'node.labels.role==manager' \
-    --publish published=9090,target=9090 \
-    --network swarm-net \
-    prom/prometheus
-else
-  echo "Prometheus service already exists"
-fi
-
-########################################
-# GRAFANA (Manager Only)
-########################################
-if ! docker service inspect grafana >/dev/null 2>&1; then
-  docker service create \
-    --name grafana \
-    --constraint 'node.labels.role==manager' \
-    --publish published=3000,target=3000 \
-    --network swarm-net \
-    grafana/grafana
-else
-  echo "Grafana service already exists"
-fi
 
 ########################################
 # TRAFFIC GENERATOR (Workers Only)
@@ -90,6 +63,57 @@ if ! docker service inspect traffic-generator >/dev/null 2>&1; then
 else
   echo "Traffic generator already exists"
 fi
+
+########################################
+# Node Exporter (ALL NODES)
+########################################
+docker service create \
+  --name node-exporter \
+  --mode global \
+  --network swarm-net \
+  --constraint 'node.platform.os == linux' \
+  --mount type=bind,src=/proc,dst=/host/proc,ro \
+  --mount type=bind,src=/sys,dst=/host/sys,ro \
+  --mount type=bind,src=/,dst=/rootfs,ro \
+  prom/node-exporter \
+  --path.procfs=/host/proc \
+  --path.sysfs=/host/sys \
+  --path.rootfs=/rootfs
+
+########################################
+# cAdvisor (ALL NODES)
+########################################
+docker service create \
+  --name cadvisor \
+  --mode global \
+  --network swarm-net \
+  --mount type=bind,src=/,dst=/rootfs,ro \
+  --mount type=bind,src=/var/run,dst=/var/run,ro \
+  --mount type=bind,src=/sys,dst=/sys,ro \
+  --mount type=bind,src=/var/lib/docker,dst=/var/lib/docker,ro \
+  gcr.io/cadvisor/cadvisor:latest
+
+########################################
+# Prometheus (MANAGER ONLY)
+########################################
+docker service create \
+  --name prometheus \
+  --constraint 'node.labels.role==manager' \
+  --publish published=9090,target=9090 \
+  --mount type=bind,src=/opt/prometheus/prometheus.yml,dst=/etc/prometheus/prometheus.yml \
+  --network swarm-net \
+  prom/prometheus
+
+########################################
+# Grafana (MANAGER ONLY)
+########################################
+docker service create \
+  --name grafana \
+  --constraint 'node.labels.role==manager' \
+  --publish published=3000,target=3000 \
+  --network swarm-net \
+  grafana/grafana
+
 
 echo "======================================"
 echo " All services deployed successfully"

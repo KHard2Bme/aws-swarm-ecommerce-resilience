@@ -115,12 +115,21 @@ resource "aws_security_group" "worker_sg" {
   # ALB → Services (ONLY)
   #################################
   ingress {
-    description     = "Frontend from ALB"
-    from_port       = 3000
-    to_port         = 3000
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb_sg.id]
-  }
+  description     = "Frontend from ALB"
+  from_port       = 3000
+  to_port         = 3000
+  protocol        = "tcp"
+  security_groups = [aws_security_group.alb_sg.id]
+}
+
+ingress {
+  description     = "Checkout from ALB"
+  from_port       = 3001
+  to_port         = 3001
+  protocol        = "tcp"
+  security_groups = [aws_security_group.alb_sg.id]
+}
+
 
    #################################
   # Docker Swarm Internal
