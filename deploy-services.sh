@@ -110,7 +110,7 @@ docker service create \
 docker service create \
   --name grafana \
   --constraint 'node.labels.role==manager' \
-  --publish published=3000,target=3000 \
+  --publish published=3100,target=3100 \
   --network swarm-net \
   grafana/grafana
 

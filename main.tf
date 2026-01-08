@@ -74,8 +74,8 @@ resource "aws_security_group" "manager_sg" {
 
   ingress {
     description = "Grafana"
-    from_port   = 3000
-    to_port     = 3000
+    from_port   = 3100
+    to_port     = 3100
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -128,6 +128,25 @@ ingress {
   to_port         = 3001
   protocol        = "tcp"
   security_groups = [aws_security_group.alb_sg.id]
+}
+
+###################################################
+# Prometheus needs to scrape node-exporter/cAdvisor
+###################################################
+ingress {
+  description     = "Node Exporter from Manager"
+  from_port       = 9100
+  to_port         = 9100
+  protocol        = "tcp"
+  cidr_blocks = [data.aws_vpc.default.cidr_block]
+}
+
+ingress {
+  description     = "cAdvisor from Manager"
+  from_port       = 8080
+  to_port         = 8080
+  protocol        = "tcp"
+  cidr_blocks = [data.aws_vpc.default.cidr_block]
 }
 
 
