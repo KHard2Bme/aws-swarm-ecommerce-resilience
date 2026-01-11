@@ -1,6 +1,8 @@
 const express = require("express");
 const app = express();
 
+const PORT = 80; // MUST be 80 inside container
+
 app.get("/", (req, res) => {
   res.send(`
     <h1>🛒 Demo E-Commerce Store</h1>
@@ -14,10 +16,11 @@ app.get("/", (req, res) => {
 });
 
 app.get("/checkout", (req, res) => {
-  res.redirect("http://checkout:3000/");
+  // Swarm service DNS, container port 80
+  res.redirect("http://checkout/checkout");
 });
 
-app.listen(3000, () => {
-  console.log("Frontend running on port 3000");
+app.listen(PORT, () => {
+  console.log(`Frontend running on port ${PORT}`);
 });
 

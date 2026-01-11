@@ -1,7 +1,9 @@
 const express = require("express");
 const app = express();
 
-app.get("/", (req, res) => {
+const PORT = 80; // MUST be 80 inside container
+
+app.get("/checkout", (req, res) => {
   res.send(`
     <h1>🧾 Checkout</h1>
     <p>Items in cart:</p>
@@ -14,7 +16,11 @@ app.get("/", (req, res) => {
   `);
 });
 
-app.listen(3000, () => {
-  console.log("Checkout running on port 3000");
+app.get("/", (req, res) => {
+  res.redirect("/checkout");
+});
+
+app.listen(PORT, () => {
+  console.log(`Checkout running on port ${PORT}`);
 });
 
